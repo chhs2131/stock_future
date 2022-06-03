@@ -1,6 +1,7 @@
 import requests
 import datetime
 from bs4 import BeautifulSoup
+import pandas as pd
 
 
 def get_request_query(url, params):
@@ -55,13 +56,41 @@ class NaverNewsCrawling:
             searching_date += datetime.timedelta(1)
         return amount_list
 
+    def get_news_amount_everyday_df(self, keyword, date_start, date_end):
+        # 시작일(date_start) 부터 종료일(date_end)까지 매일 keyword에 해당하는 기사가 몇 개 나왔는지 확인합니다. (반환 데이터프레임)
+        date_start = datetime.datetime.strptime(date_start, "%Y.%m.%d")
+        date_end = datetime.datetime.strptime(date_end, "%Y.%m.%d")
+
+        # 시작일부터 종료일까지 매일 get_news_amount 실행하게 동작
+        date_list = []
+        pagenum_list = []
+        searching_date = date_start
+        while searching_date <= date_end:
+            d = searching_date.strftime("%Y.%m.%d")
+            na = self.get_news_amount(keyword, d, d)  # 특정일자에 뉴스가 총 몇페이지 검색됬는지 반환합니다.(int)
+            # print(searching_date.strftime("%Y년 %m월 %d일  페이지:"), na)
+            date_list.append(searching_date)
+            pagenum_list.append(na)
+
+            # 다음날로 넘김
+            searching_date += datetime.timedelta(1)
+
+        amount_list = {"Date": date_list, "pagenum": pagenum_list}
+        amount_df = pd.DataFrame(amount_list, columns=["Date", "pagenum"])
+        amount_df = amount_df.set_index('Date')
+        return amount_df
+
+
 # main
 nnc = NaverNewsCrawling()
 search_keyword = '삼성전자'  # 검색할 단어
 search_date_start = '2022.01.01'  # 시작일
 search_date_end = '2022.01.31'  # 종료일
-al = nnc.get_news_amount_everyday(search_keyword, search_date_start, search_date_end)
+# al = nnc.get_news_amount_everyday(search_keyword, search_date_start, search_date_end)
+#
+# # 출력
+# for a_key, a_value in al.items():
+#     print(a_key, "  페이지 수:", a_value)
 
-# 출력
-for a_key, a_value in al.items():
-    print(a_key, "  페이지 수:", a_value)
+al = nnc.get_news_amount_everyday_df(search_keyword, search_date_start, search_date_end)
+print(al)
