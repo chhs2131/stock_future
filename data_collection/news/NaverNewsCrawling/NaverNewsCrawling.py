@@ -26,12 +26,15 @@ class NaverNewsCrawling:
         get_data = requests.get(request_query, headers={'User-Agent': 'Mozilla/5.0'})
 
         # 데이터 분류
-        html = BeautifulSoup(get_data.text, "html.parser").find("body")
-        news_list = html.find("section").find_all("li")
-        page_btn = html.select_one(".sc_page_inner").find_all("a")
+        try:
+            html = BeautifulSoup(get_data.text, "html.parser").find("body")
+            news_list = html.find("section").find_all("li")
+            page_btn = html.select_one(".sc_page_inner").find_all("a")
 
-        # 출력
-        news_amount = int(page_btn[len(page_btn) - 1].text)
+            # 출력
+            news_amount = int(page_btn[len(page_btn) - 1].text)
+        except Exception as e:
+            news_amount = 0
         # if date_start == date_end:
         #     print(date_start, "마지막 페이지:", news_amount)
         # else:
@@ -83,7 +86,7 @@ class NaverNewsCrawling:
 
 # main
 nnc = NaverNewsCrawling()
-search_keyword = '삼성전자'  # 검색할 단어
+search_keyword = 'LX세미콘'  # 검색할 단어
 search_date_start = '2022.01.01'  # 시작일
 search_date_end = '2022.01.31'  # 종료일
 # al = nnc.get_news_amount_everyday(search_keyword, search_date_start, search_date_end)
