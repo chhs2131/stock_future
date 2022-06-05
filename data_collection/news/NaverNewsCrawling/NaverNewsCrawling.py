@@ -26,6 +26,7 @@ class NaverNewsCrawling:
         get_data = requests.get(request_query, headers={'User-Agent': 'Mozilla/5.0'})
 
         # 데이터 분류
+        news_amount = 0
         try:
             html = BeautifulSoup(get_data.text, "html.parser").find("body")
             news_list = html.find("section").find_all("li")
