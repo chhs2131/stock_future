@@ -1,9 +1,11 @@
-# stock_future
+# 📈인공지능 주가예측
 Keras LSTM을 이용한 주가예측
 
 <br/>
+<br/>
+<br/>
 
-# 개요
+# 📢개요
 
 
 ## 목표
@@ -13,6 +15,8 @@ Keras LSTM을 이용한 주가예측
 - OHLCV (시가, 고가, 저가, 종가, 거래량)
 - 발행된 뉴스 개수
 - 나스닥 지수
+
+<br/>
 
 ### 입력 데이터
 
@@ -30,10 +34,11 @@ Keras LSTM을 이용한 주가예측
 
 
 <br/>
+<br/>
+<br/>
 
-# 개발순서
+# 🛠개발순서
 
----
 
 1. 데이터 수집
     1. API에서 아래 데이터 수집
@@ -48,10 +53,11 @@ Keras LSTM을 이용한 주가예측
 5. 완성!
 
 <br/>
+<br/>
+<br/>
 
-# Recurrent Neural Network
+# ✨Recurrent Neural Network
 
----
 ## 기본 개념
 RNN 형태  → LSTM
 
@@ -67,11 +73,10 @@ RNN 형태  → LSTM
 ![img_2.png](관련자료/img_2.png)
 
 <br/>
+<br/>
+<br/>
 
-# 내용
-## 소스코드
-
-main.py
+# 📊결과
 
 ## 예측결과
 ### 그래프
@@ -102,9 +107,8 @@ main.py
 
 <br/>
 
-# 참고자료
+# 📚참고자료
 
----
 ## 링크
 [(칼럼) 딥러닝 초보들이 흔히하는 실수 : 주식가격 예측 AI](https://codingapple.com/unit/deep-learning-stock-price-ai/)
 
