@@ -1,7 +1,15 @@
 # 📈인공지능 주가예측
 Keras LSTM을 이용한 주가예측
 
-모듈 의존성
+
+**버전 정보**
+- Python 3.7.13
+- TensorFlow 2.8.2
+- finance-datareader
+
+<br/>
+
+**모듈 의존성**
 ```python
 import pandas as pd
 from sklearn import preprocessing
@@ -18,6 +26,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 ```
 
+
+
+
+
+
+
+
 <br/>
 <br/>
 <br/>
@@ -31,9 +46,13 @@ import matplotlib.pyplot as plt
 5. 예측 진행
 6. 개선 방향
 
+<br/>
+
 ## 목표
 ![](관련자료/ppt_image/슬라이드3.JPG)
 이전 50거래일 기록을 통해 내일의 시가를 예측 
+
+<br/>
 
 ## LSTM 개념
 ![](관련자료/ppt_image/슬라이드4.JPG)
@@ -44,9 +63,23 @@ import matplotlib.pyplot as plt
 - 사용예: 필체 인식, 대화 인식, 어노멀리 디텍션, Time Series Data 등
 
 
+
+
+
+
+
+
+
+
+<br/>
+<br/>
+<br/>
+
 # 🛠 데이터 수집
 ## 데이터 수집 과정
 ![](관련자료/ppt_image/슬라이드6.JPG)
+
+<br/>
 
 ## 수집할 데이터
 ![](관련자료/ppt_image/슬라이드5.JPG)
@@ -56,6 +89,82 @@ import matplotlib.pyplot as plt
 
 ### 수집된 데이터 예
 ![](관련자료/주가예측데이터셋.png)
+
+
+## 데이터 수집 코드
+- call_dataset 함수 내부에서 데이터 수집을 처리하고 결과를 반환해준다.
+- NaverNewsCrawling 은 자체 제작한 크롤링 모듈이다. (본 글에 data_collection > news 디렉토리에 위치함)
+
+```python
+def call_dataset(stock_name, stt='2020-01-01', end='2020-02-01', history_points=50):
+    import data_collection.news.NaverNewsCrawling as NaverNewsCrawling
+
+    # 이름으로 종목 정보 가져오기
+    df_krx = fdr.StockListing('KRX')
+    list_krx = {}
+    for i in range(len(df_krx.Name)):
+        list_krx[df_krx['Name'][i]] = {"code": df_krx['Symbol'][i], "sector": df_krx['Sector'][i]}
+
+    ticker = list_krx[stock_name]["code"]
+    print(stock_name, "의 종목코드는 ", ticker)
+
+    # OHLCV 값 가져오기
+    ohlcv = fdr.DataReader(ticker, stt, end)
+    ohlcv = ohlcv.iloc[:, 0:-1]
+    # ohlcv = ohlcv.loc[:,['Open','Close','Volume']]  # 시가, 종가, 거래량만 가져오기
+    # print('ohlcv: ', ohlcv)
+
+    # 나스닥 지수 (종가) 가져오기
+    nasdaq = fdr.DataReader('IXIC', stt, end)
+    nasdaq = nasdaq.loc[:, ['Close']]
+    nasdaq.rename(columns={"Close": "IXIC_Close"}, inplace=True)  # 컬럼명 바꾸기
+    # print('nasdaq: ', nasdaq)
+
+    # 뉴스 갯수 가져오기
+    nnc = NaverNewsCrawling()
+    news_amount = nnc.get_news_amount_everyday_df(stock_name, stt, end)
+    # print(news_amount)
+
+    # 일자별로 데이터 합치기
+    data_result = ohlcv.join(nasdaq).join(news_amount)
+    data_result = data_result.fillna(method='ffill')  # 값(NaN)이 없는경우 이전일에서 데이터를 가져오도록함.
+    print(data_result)
+    data_result = data_result.values
+
+    # 데이터를 0~1 범위로 스케일링
+    data_normalizer = preprocessing.MinMaxScaler()
+    data_normalized = data_normalizer.fit_transform(data_result)
+
+    # 살펴볼 일수(window size = history_points) 단위로 데이터를 저장한다.
+    ohlcv_histories_normalized = np.array(
+        [data_normalized[i:i + history_points].copy() for i in range(len(data_normalized) - history_points)])
+
+    # y_data (시초가)
+    next_day_open_values_normalized = np.array(
+        [data_normalized[:, 0][i + history_points].copy() for i in range(len(data_normalized) - history_points)])
+    next_day_open_values_normalized = np.expand_dims(next_day_open_values_normalized, -1)  # 1XN 벡터 -> NX1 벡터로
+
+    next_day_open_values = np.array(
+        [data_result[:, 0][i + history_points].copy() for i in range(len(data_result) - history_points)])
+    next_day_open_values = np.expand_dims(next_day_open_values, -1)  # 1XN 벡터 -> NX1 벡터로
+
+    # 종가 데이터 기록
+    close_values = np.array(
+        [data_result[:, 1][i + history_points].copy() for i in range(len(data_result) - history_points)])
+    close_values = np.expand_dims(close_values, -1)  # 1XN 벡터 -> NX1 벡터로
+
+    # 데이터를 0~1 범위로 스케일링
+    y_normalizer = preprocessing.MinMaxScaler()
+    y_normalizer.fit(next_day_open_values)
+
+    # 값 반환
+    return ohlcv_histories_normalized, next_day_open_values_normalized, next_day_open_values, y_normalizer, close_values
+```
+
+
+
+
+
 
 
 
@@ -70,8 +179,25 @@ import matplotlib.pyplot as plt
 ![](관련자료/ppt_image/슬라이드9.JPG)
 오늘을 포함한 50일간의 데이터를 바탕으로 내일의 시가(Open Price)를 예측하는 컨셉의 모델이다.
 
+<br/>
+
 ## 학습 환경
 ![](관련자료/ppt_image/슬라이드11.JPG)
+```python
+lstm_input = Input(shape=(history_points, 7), name='lstm_input')
+x = LSTM(50, name='lstm_0')(lstm_input)
+x = Dropout(0.2, name='lstm_dropout_0')(x)
+x = Dense(64, name='dense_0')(x)  # 64
+x = Activation('sigmoid', name='sigmoid_0')(x)
+x = Dense(1, name='dense_1')(x)
+output = Activation('linear', name='linear_output')(x)
+
+model = Model(inputs=lstm_input, outputs=output)
+adam = tf.keras.optimizers.Adam(lr=0.0005)
+model.compile(optimizer=adam, loss='mse')
+model.fit(x=ohlcv_train, y=y_train, batch_size=32, epochs=2000, shuffle=True, validation_split=0.1)  # 반복학습 회수 = epochs.
+  ```
+	
 - 입력데이터에 대한 0~1 MinMax Scale 전처리
 - 64 hidden-layer
 - Optimizer Adam 사용
@@ -80,13 +206,44 @@ import matplotlib.pyplot as plt
 
 ### 학습 진행 예
 ![img_2.png](관련자료/img_2.png)
+
+
+
+
+
+
+
+
 <br/>
 <br/>
 <br/>
 
 # 🏃‍♂️예측 진행
 ![](관련자료/ppt_image/슬라이드13.JPG)
+
+```python
+plt.gcf().set_size_inches(22, 15, forward=True)
+
+start = 0
+end = -1
+real = plt.plot(unscaled_y[start:end], label='real')
+pred = plt.plot(y_predicted[start:end], label='predicted')
+
+plt.legend(['Real', 'Predicted'])
+plt.title(stock_name + ' Using LSTM by TGG')
+plt.show()
+```
+
 ![](관련자료/ppt_image/슬라이드14.JPG)
+
+
+
+
+
+
+
+
+
 
 <br/>
 <br/>
@@ -103,7 +260,7 @@ import matplotlib.pyplot as plt
 ‘등락’을 맞춘다는 것은 쉽게말해 ‘수익을 낼 수 있다.’로 해석 할 수 있는데 등락을 맞추지 못한 경우가 전체의 약 30% 정도이다.
 즉, 실제 투자에 바로 적용하기는 어려움.
 
-
+<br/>
 
 ## 개선 방향
 ![](관련자료/ppt_image/슬라이드16.JPG)
@@ -131,6 +288,16 @@ import matplotlib.pyplot as plt
 
 
 
+
+
+
+
+
+
+
+
+
+
 <br/>
 <br/>
 <br/>
@@ -147,6 +314,19 @@ import matplotlib.pyplot as plt
 ![img_3.png](관련자료/img_3.png)
 ![img_1.png](관련자료/img_1.png)
 ![img.png](관련자료/img.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 <br/>
