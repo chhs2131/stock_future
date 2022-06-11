@@ -41,10 +41,7 @@ def call_dataset(stock_name, stt='2020-01-01', end='2020-02-01', history_points=
     nasdaq.rename(columns={"Close": "IXIC_Close"}, inplace=True)  # 컬럼명 바꾸기
     # print('nasdaq: ', nasdaq)
 
-    # 업종별 등락률 가져오기
-    # 흠...
-
-    # 뉴스 갯수 가져오기 (넘느려서 일단 주석처리)
+    # 뉴스 갯수 가져오기
     nnc = NaverNewsCrawling()
     news_amount = nnc.get_news_amount_everyday_df(stock_name, stt, end)
     # print(news_amount)
@@ -85,23 +82,27 @@ def call_dataset(stock_name, stt='2020-01-01', end='2020-02-01', history_points=
     return ohlcv_histories_normalized, next_day_open_values_normalized, next_day_open_values, y_normalizer, close_values
 
 
+########################################################################################################################
 # 기본 정보 입력
+########################################################################################################################
 history_points = 50
 stock_name="LX세미콘"
 stt = '2020-01-01'
 end = '2022-05-30'
 
+########################################################################################################################
 # 데이터 가져오기
+########################################################################################################################
 ohlcv_histories, next_day_open_values, unscaled_y, y_normaliser, close_values = call_dataset(
     stock_name=stock_name, stt=stt, end=end, history_points=history_points)
 
-train_ratio = 0.7
+train_ratio = 0.7  # 학습에 사용할 데이터량과, 테스트에 사용할 데이터량을 결정하는 변수 (비율 0.7 = 70%)
 n = int(ohlcv_histories.shape[0] * train_ratio)
 
-ohlcv_train = ohlcv_histories[-n:-1]
+ohlcv_train = ohlcv_histories[-n:-1]  # 학습에 사용될 데이터
 y_train = next_day_open_values[-n:-1]
 
-ohlcv_test = ohlcv_histories[:ohlcv_histories.shape[0]-n]
+ohlcv_test = ohlcv_histories[:ohlcv_histories.shape[0]-n]  # 테스트에 사용될 데이터
 y_test = next_day_open_values[:ohlcv_histories.shape[0]-n]
 
 unscaled_y_test = unscaled_y[:ohlcv_histories.shape[0]-n]
@@ -109,7 +110,9 @@ unscaled_y_test = unscaled_y[:ohlcv_histories.shape[0]-n]
 print('ohlcv_train.shape: ', ohlcv_train.shape)
 print('ohlcv_test.shape: ',ohlcv_test.shape)
 
+########################################################################################################################
 # 학습 진행
+########################################################################################################################
 lstm_input = Input(shape=(history_points, 7), name='lstm_input')
 x = LSTM(50, name='lstm_0')(lstm_input)
 x = Dropout(0.2, name='lstm_dropout_0')(x)
@@ -123,7 +126,9 @@ adam = tf.keras.optimizers.Adam(lr=0.0005)
 model.compile(optimizer=adam, loss='mse')
 model.fit(x=ohlcv_train, y=y_train, batch_size=32, epochs=2000, shuffle=True, validation_split=0.1)  # 반복학습 회수 = epochs.
 
+########################################################################################################################
 # evaluation
+########################################################################################################################
 y_test_predicted = model.predict(ohlcv_test)
 y_test_predicted = y_normaliser.inverse_transform(y_test_predicted)
 y_predicted = model.predict(ohlcv_histories)
@@ -137,8 +142,9 @@ print(scaled_mse)
 # 학습 모델 저장
 model.save(f'basic_model.h5')
 
-
+########################################################################################################################
 # 그래프 그리기 (실제가격과 예측가격)
+########################################################################################################################
 plt.gcf().set_size_inches(22, 15, forward=True)
 
 start = 0
@@ -150,7 +156,9 @@ plt.legend(['Real', 'Predicted'])
 plt.title(stock_name + ' Using LSTM by TGG')
 plt.show()
 
+########################################################################################################################
 # 적합도 확인
+########################################################################################################################
 col_name = ['real', 'pred', 'close']
 real, pred, clo = pd.DataFrame(unscaled_y[start:end]), pd.DataFrame(y_predicted[start:end]), pd.DataFrame(close_values[start:end])
 foo = pd.concat([real, pred, clo], axis = 1)
